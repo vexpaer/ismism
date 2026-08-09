@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/generate-wiki-pages.mjs",
+    "build": "node scripts/validate-content.mjs && vite build && node scripts/generate-wiki-pages.mjs",
     "preview": "vite preview",
     "check": "npm run build",
     "test:smoke": "node scripts/smoke-test.mjs"

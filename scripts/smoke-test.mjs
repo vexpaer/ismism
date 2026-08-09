@@ -37,9 +37,28 @@ await clickCoordinate("1-1-1-2");
 
 await page.locator('[data-open-wiki="1-1-1-2"]').click();
 await page.waitForURL(/#\/wiki\/1-1-1-2$/);
+await page.locator(".wiki-article").waitFor({ state: "visible" });
 await page.locator("#wiki-title").waitFor({ state: "visible" });
 const wikiTitle = await page.locator("#wiki-title").textContent();
 if (wikiTitle?.trim() !== "有机进化论") errors.push(`unexpected wiki title: ${wikiTitle}`);
+if ((await page.locator(".wiki-prose p").count()) !== 2) errors.push("Wiki overview does not have 2 paragraphs");
+if ((await page.locator(".wiki-key-grid article").count()) !== 3) errors.push("Wiki does not have 3 key ideas");
+if ((await page.locator(".wiki-depth-grid li").count()) < 2) errors.push("Wiki debates are incomplete");
+if ((await page.locator(".wiki-reading span").count()) < 2) errors.push("Wiki reading list is incomplete");
+
+await page.goto(`${baseUrl}#/wiki/2-4-3`, { waitUntil: "networkidle" });
+await page.locator(".wiki-article").waitFor({ state: "visible" });
+await page.waitForTimeout(120);
+if ((await page.evaluate(() => window.scrollY)) > 1) errors.push("Wiki navigation did not reset scroll position");
+if (!(await page.locator(".wiki-kind").textContent())?.includes("站内坐标解释")) {
+  errors.push("interpretive coordinate is missing its editorial status");
+}
+
+await page.goto(`${baseUrl}#/wiki/5-3`, { waitUntil: "networkidle" });
+await page.waitForURL(/#\/cube\/5\/3$/);
+if (!(await page.locator("#stage-hint").textContent())?.includes("待整理")) {
+  errors.push("open Wiki coordinate did not fall back to its cube explanation");
+}
 
 await page.goto(`${baseUrl}#/cube`, { waitUntil: "networkidle" });
 await page.keyboard.press("/");
@@ -63,8 +82,20 @@ if (viewport.scrollWidth > viewport.clientWidth + 1) {
   errors.push(`mobile horizontal overflow: ${viewport.scrollWidth} > ${viewport.clientWidth}`);
 }
 
+await page.setViewportSize({ width: 768, height: 1024 });
+await page.goto(`${baseUrl}#/wiki/1-1-1-2`, { waitUntil: "networkidle" });
+await page.locator(".wiki-article").waitFor({ state: "visible" });
+const tabletViewport = await page.evaluate(() => ({
+  clientWidth: document.documentElement.clientWidth,
+  scrollWidth: document.documentElement.scrollWidth,
+}));
+if (tabletViewport.scrollWidth > tabletViewport.clientWidth + 1) {
+  errors.push(`tablet Wiki overflow: ${tabletViewport.scrollWidth} > ${tabletViewport.clientWidth}`);
+}
+
 await page.emulateMedia({ reducedMotion: "reduce" });
 await page.goto(`${baseUrl}#/wiki/1-1-1-2`, { waitUntil: "networkidle" });
+await page.locator(".wiki-article").waitFor({ state: "visible" });
 const reducedMotionStyle = await page.locator(".wiki-header > *").first().getAttribute("style");
 if (reducedMotionStyle?.match(/transform|opacity|visibility/)) {
   errors.push(`reduced-motion Wiki still received GSAP inline styles: ${reducedMotionStyle}`);
@@ -88,5 +119,5 @@ if (errors.length) {
 }
 
 console.log(
-  "Smoke test passed: cube drill-down, Wiki route, search, mobile width, reduced motion, and open-coordinate semantics.",
+  "Smoke test passed: cube drill-down, complete Wiki content, search, mobile width, reduced motion, and open-coordinate semantics.",
 );

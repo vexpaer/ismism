@@ -4,6 +4,8 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { gsap } from "gsap";
 
 import "./styles.css";
+import { articleKindLabel } from "./article-meta.js";
+import { loadArticle } from "./content-loader.js";
 import {
   ALL_NODES,
   CATALOG_NAMED_COUNT,
@@ -16,6 +18,7 @@ import {
 } from "./data.js";
 
 const app = document.querySelector("#app");
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
 app.innerHTML = `
   <header class="site-header">
@@ -214,7 +217,9 @@ const parseRoute = () => {
   const route = window.location.hash || "#/cube";
   const parts = route.replace(/^#\/?/, "").split("/").filter(Boolean);
   if (parts[0] === "wiki") {
-    return { view: "wiki", node: NODE_MAP.get(parts[1]) ?? ROOTS[0] };
+    const node = NODE_MAP.get(parts[1]);
+    if (node?.status === "published") return { view: "wiki", node };
+    return { view: "invalid-wiki", node: node?.status === "open" ? node : null };
   }
   if (parts[0] === "cube" && parts.length > 1) {
     return { view: "cube", node: NODE_MAP.get(parts.slice(1).join("-")) ?? null };
@@ -826,20 +831,50 @@ const renderCubeState = (node, { intro = true, focusHeading = false } = {}) => {
 };
 
 const relatedNodes = (node) => {
-  if (!node.parent) return node.children.slice(0, 4);
+  if (!node.parent) return node.children.filter((candidate) => candidate.status === "published").slice(0, 4);
   const parent = NODE_MAP.get(node.parent);
   return parent.children.filter((candidate) => candidate.id !== node.id && candidate.status === "published").slice(0, 4);
 };
 
-const renderWiki = (node, { intro = true } = {}) => {
+const renderWiki = async (node, { intro = true } = {}) => {
   currentNode = node;
   cubeScene?.stopFloat();
   document.body.dataset.view = "wiki";
   elements.exploreView.hidden = true;
   elements.wikiView.hidden = false;
+  const expectedHash = routeForWiki(node);
+  elements.wikiView.innerHTML = `
+    <div class="wiki-loading" role="status">
+      <p class="micro-label">LOADING COORDINATE ${node.id}</p>
+      <h1 id="wiki-title">正在展开「${escapeHtml(node.title)}」</h1>
+    </div>`;
+
+  let article;
+  try {
+    article = node.article ?? (await loadArticle(node.id));
+  } catch (error) {
+    console.error("Wiki content failed to load", error);
+    if (window.location.hash !== expectedHash) return;
+    elements.wikiView.innerHTML = `
+      <div class="wiki-loading wiki-load-error">
+        <p class="micro-label">CONTENT ERROR</p>
+        <h1 id="wiki-title">词条暂时无法载入</h1>
+        <a class="secondary-button" href="${routeForCube(node)}">返回坐标体</a>
+      </div>`;
+    return;
+  }
+
+  if (window.location.hash !== expectedHash) return;
+  node.article = article;
+  node.summary = article.definition;
+  node.history = article.history;
+  node.debate = article.debates.join("；");
+  node.reading = article.reading;
   const path = getPath(node);
   const related = relatedNodes(node);
   const quadrant = node.quadrant;
+  const editorialLabel = article.editorialStatus === "interpretive" ? "站内坐标解释" : "通行概念导论";
+  const kindLabel = articleKindLabel(article.kind, article.editorialStatus);
 
   elements.wikiView.innerHTML = `
     <nav class="wiki-breadcrumbs" aria-label="词条路径">
@@ -853,6 +888,7 @@ const renderWiki = (node, { intro = true } = {}) => {
           <p class="eyebrow">COORDINATE ${node.id}</p>
           <h1 id="wiki-title">${escapeHtml(node.title)}</h1>
           <p class="wiki-english">${escapeHtml(node.english)}</p>
+          <p class="wiki-kind"><span>${escapeHtml(kindLabel)}</span><i>${editorialLabel}</i></p>
         </div>
         <div class="wiki-actions">
           <a class="secondary-button" href="${routeForCube(node)}">回到坐标体</a>
@@ -860,7 +896,17 @@ const renderWiki = (node, { intro = true } = {}) => {
         </div>
       </header>
 
-      <p class="wiki-deck">${escapeHtml(node.summary)}</p>
+      <p class="wiki-deck">${escapeHtml(article.definition)}</p>
+
+      <section class="wiki-overview" aria-labelledby="overview-title">
+        <div>
+          <p class="micro-label">OVERVIEW</p>
+          <h2 id="overview-title">概念总览</h2>
+        </div>
+        <div class="wiki-prose">
+          ${article.overview.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
+        </div>
+      </section>
 
       <div class="wiki-coordinate">
         <div class="coordinate-stamp" style="--stamp-color:${quadrant?.color ?? "#171813"}">
@@ -871,44 +917,79 @@ const renderWiki = (node, { intro = true } = {}) => {
         <div>
           <p class="micro-label">PLACEMENT</p>
           <h2>为什么放在这里？</h2>
-          <p>${escapeHtml(
-            quadrant
-              ? `这个位置继承“${quadrant.name}”坐标：${quadrant.description}`
-              : "这是五个总域之一，它从外层立方体进入后，再使用四象坐标继续定位。",
-          )}</p>
+          <p>${escapeHtml(article.placement)}</p>
           <div class="text-path">${path.map((item) => `<span>${escapeHtml(item.title)}</span>`).join("<i>→</i>")}</div>
         </div>
       </div>
 
-      <div class="wiki-columns">
-        <section>
-          <p class="micro-label">CORE THESIS</p>
-          <h2>核心命题</h2>
-          <p>${escapeHtml(node.thesis)}</p>
-        </section>
+      <section class="wiki-key-section" aria-labelledby="key-ideas-title">
+        <div class="wiki-section-heading">
+          <p class="micro-label">KEY IDEAS</p>
+          <h2 id="key-ideas-title">三个理解支点</h2>
+        </div>
+        <div class="wiki-key-grid">
+          ${article.keyIdeas
+            .map(
+              (idea, index) => `
+                <article>
+                  <span>0${index + 1}</span>
+                  <h3>${escapeHtml(idea.title)}</h3>
+                  <p>${escapeHtml(idea.text)}</p>
+                </article>`,
+            )
+            .join("")}
+        </div>
+      </section>
+
+      <div class="wiki-depth-grid">
         <section>
           <p class="micro-label">CONTEXT</p>
-          <h2>思想背景</h2>
-          <p>${escapeHtml(node.history)}</p>
+          <h2>思想背景与沿革</h2>
+          <p>${escapeHtml(article.history)}</p>
         </section>
         <section>
-          <p class="micro-label">DEBATE</p>
+          <p class="micro-label">DEBATES</p>
           <h2>主要争论</h2>
-          <p>${escapeHtml(node.debate)}</p>
+          <ol>
+            ${article.debates
+              .map((debate, index) => `<li><span>0${index + 1}</span><p>${escapeHtml(debate)}</p></li>`)
+              .join("")}
+          </ol>
         </section>
       </div>
 
-      ${
-        node.reading.length
-          ? `<section class="wiki-reading"><p class="micro-label">READ NEXT</p><h2>继续理解</h2><div>${node.reading
-              .map((item) => `<span>${escapeHtml(item)}</span>`)
-              .join("")}</div></section>`
-          : ""
-      }
+      <div class="wiki-reference-grid">
+        <section class="wiki-reading">
+          <p class="micro-label">READ NEXT</p>
+          <h2>继续理解</h2>
+          <div>${article.reading.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
+        </section>
+        <section class="wiki-sources">
+          <p class="micro-label">SOURCES</p>
+          <h2>参考入口</h2>
+          ${
+            article.sources.length
+              ? `<ol>${article.sources
+                  .map(
+                    (source, index) => `
+                      <li>
+                        <span>0${index + 1}</span>
+                        <a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer noopener">${escapeHtml(source.label)} ↗</a>
+                      </li>`,
+                  )
+                  .join("")}</ol>`
+              : `<p class="source-note">这是一个${article.editorialStatus === "interpretive" ? "站内解释性坐标，暂无可一一对应的通行文献" : "综合导论页，延伸线索列在左侧"}。</p>`
+          }
+        </section>
+      </div>
 
       <aside class="editorial-note">
-        <strong>编辑说明</strong>
-        <p>本站采用作者提供的思想坐标作为主要入口。分类本身也是一种论证：欢迎把它当成可检查、可反驳、可继续修订的地图，而非唯一标准答案。</p>
+        <strong>${editorialLabel}</strong>
+        <p>${
+          article.editorialStatus === "interpretive"
+            ? "这一标题并非可直接对应的通行学派名称。本页依据 PDF 原名、上位路径和四象位置给出受约束的站内解释；它描述的是一种可讨论的思想姿态，不声称学界已有同名传统。"
+            : "本页以通行哲学含义和可核查的思想史脉络为基础，再解释它在《主义主义》坐标中的特殊位置。坐标归类属于本站判断，可以被比较、质疑和修订。"
+        }</p>
       </aside>
 
       <section class="related-section">
@@ -931,21 +1012,31 @@ const renderWiki = (node, { intro = true } = {}) => {
     </article>
   `;
 
-  window.scrollTo({ top: 0, behavior: "auto" });
+  window.scrollTo({ top: 0, behavior: "instant" });
+  requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  window.setTimeout(() => {
+    if (window.location.hash === expectedHash) window.scrollTo({ top: 0, behavior: "instant" });
+  }, 80);
   if (intro && !prefersReducedMotion()) {
     const timeline = gsap.timeline({ defaults: { ease: "power3.out", duration: 0.7 } });
     timeline
       .fromTo(".wiki-header > *", { y: 28, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.09 })
       .fromTo(".wiki-deck", { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1 }, "<0.18")
-      .fromTo(".wiki-coordinate", { y: 28, autoAlpha: 0 }, { y: 0, autoAlpha: 1 }, "<0.12");
+      .fromTo(".wiki-overview", { y: 28, autoAlpha: 0 }, { y: 0, autoAlpha: 1 }, "<0.12");
   }
 };
 
 const renderRoute = ({ intro = true } = {}) => {
   navigating = false;
   const route = parseRoute();
-  if (route.view === "wiki") renderWiki(route.node, { intro });
-  else renderCubeState(route.node, { intro });
+  if (route.view === "wiki") {
+    void renderWiki(route.node, { intro });
+    return;
+  }
+  if (route.view === "invalid-wiki") {
+    history.replaceState(null, "", routeForCube(route.node));
+  }
+  renderCubeState(route.node, { intro });
 };
 
 const navigateToNode = (node, mesh = null, intersection = null) => {
@@ -995,11 +1086,25 @@ const searchNodes = (query) => {
   const normalized = query.trim().toLocaleLowerCase();
   if (!normalized) return publishedNodes().slice(0, 8);
   return publishedNodes()
-    .filter((node) =>
-      [node.id, node.title, node.english, ...node.aliases].some((value) =>
-        value.toLocaleLowerCase().includes(normalized),
-      ),
-    )
+    .filter((node) => {
+      const article = node.article;
+      const articleTerms = article
+        ? [
+            article.kind,
+            articleKindLabel(article.kind, article.editorialStatus),
+            article.definition,
+            ...article.reading,
+            ...article.keyIdeas.map((idea) => `${idea.title} ${idea.text}`),
+          ]
+        : [];
+      return [
+        node.id,
+        node.title,
+        node.english,
+        ...node.aliases,
+        ...articleTerms,
+      ].some((value) => value.toLocaleLowerCase().includes(normalized));
+    })
     .slice(0, 12);
 };
 
@@ -1027,8 +1132,13 @@ const openSearch = () => {
 };
 
 const openWiki = (node) => {
+  if (!node || node.status !== "published") {
+    pushRoute(routeForCube(node?.status === "open" ? node : null));
+    renderCubeState(node?.status === "open" ? node : null, { intro: true });
+    return;
+  }
   pushRoute(routeForWiki(node));
-  renderWiki(node, { intro: true });
+  void renderWiki(node, { intro: true });
 };
 
 document.addEventListener("click", (event) => {

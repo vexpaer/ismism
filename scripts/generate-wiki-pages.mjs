@@ -1,5 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { articleKindLabel } from "../src/article-meta.js";
 
 const titles = JSON.parse(await readFile(new URL("../src/catalog-titles.json", import.meta.url), "utf8"));
 const roots = {
@@ -11,6 +12,13 @@ const roots = {
 };
 const entries = { ...roots, ...titles };
 const base = "/ismism/";
+const contentFiles = (await readdir("src/content")).filter((file) => file.endsWith(".json"));
+const articles = Object.assign(
+  {},
+  ...(await Promise.all(
+    contentFiles.map(async (file) => JSON.parse(await readFile(join("src/content", file), "utf8"))),
+  )),
+);
 
 const escapeHtml = (value) =>
   String(value)
@@ -21,6 +29,7 @@ const escapeHtml = (value) =>
     .replaceAll("'", "&#039;");
 
 for (const [id, title] of Object.entries(entries)) {
+  const article = articles[id];
   const directory = join("dist", "wiki", id);
   await mkdir(directory, { recursive: true });
   const target = `${base}#/wiki/${id}`;
@@ -30,16 +39,24 @@ for (const [id, title] of Object.entries(entries)) {
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="${escapeHtml(title)}：主义主义思想坐标 ${id}。">
+    <meta name="description" content="${escapeHtml(article.definition)}">
     <meta http-equiv="refresh" content="0; url=${target}">
     <link rel="canonical" href="${directUrl}">
     <title>${escapeHtml(title)} · 主义主义</title>
     <script>location.replace(${JSON.stringify(target)});</script>
   </head>
   <body>
-    <main>
+    <main itemscope itemtype="https://schema.org/Article">
       <h1>${escapeHtml(title)}</h1>
-      <p>思想坐标 ${id}</p>
+      <p>思想坐标 ${id} · ${escapeHtml(articleKindLabel(article.kind, article.editorialStatus))}</p>
+      <p itemprop="description">${escapeHtml(article.definition)}</p>
+      ${article.overview.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("\n      ")}
+      <h2>理解支点</h2>
+      <ul>
+        ${article.keyIdeas
+          .map((idea) => `<li><strong>${escapeHtml(idea.title)}</strong>：${escapeHtml(idea.text)}</li>`)
+          .join("\n        ")}
+      </ul>
       <p><a href="${target}">进入完整 Wiki 词条</a></p>
     </main>
   </body>

@@ -1083,6 +1083,26 @@ kbd {
   padding: clamp(30px, 5vw, 76px) clamp(20px, 4vw, 64px) 130px;
 }
 
+.wiki-loading {
+  min-height: 62vh;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.wiki-loading h1 {
+  max-width: 900px;
+  margin: 0;
+  font-family: "Noto Serif SC", serif;
+  font-size: clamp(38px, 7vw, 96px);
+  line-height: 1.08;
+}
+
+.wiki-load-error a {
+  margin-top: 36px;
+}
+
 .wiki-breadcrumbs {
   display: flex;
   flex-wrap: wrap;
@@ -1118,12 +1138,67 @@ kbd {
   font-size: clamp(18px, 2.4vw, 34px);
 }
 
+.wiki-kind {
+  margin: 22px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.wiki-kind span,
+.wiki-kind i {
+  padding: 6px 9px;
+  border: 1px solid var(--hairline);
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+}
+
+.wiki-kind i {
+  background: var(--ink);
+  color: var(--paper);
+}
+
 .wiki-deck {
   max-width: 1060px;
   margin: clamp(50px, 7vw, 100px) 0;
   font-family: "Noto Serif SC", serif;
   font-size: clamp(28px, 3.7vw, 56px);
   line-height: 1.55;
+}
+
+.wiki-overview {
+  padding: clamp(42px, 7vw, 96px) 0;
+  display: grid;
+  grid-template-columns: minmax(230px, 0.72fr) minmax(420px, 1.28fr);
+  gap: clamp(40px, 8vw, 130px);
+  border-top: 1px solid var(--hairline);
+}
+
+.wiki-overview h2,
+.wiki-key-section h2,
+.wiki-depth-grid h2,
+.wiki-sources h2 {
+  margin: 0;
+  font-family: "Noto Serif SC", serif;
+  font-size: clamp(28px, 3vw, 48px);
+}
+
+.wiki-prose {
+  display: grid;
+  gap: 22px;
+}
+
+.wiki-prose p,
+.wiki-key-grid p,
+.wiki-depth-grid p,
+.source-note {
+  margin: 0;
+  color: #44453f;
+  font-family: "Noto Serif SC", serif;
+  font-size: 17px;
+  line-height: 1.9;
 }
 
 .wiki-coordinate {
@@ -1163,6 +1238,7 @@ kbd {
 .wiki-coordinate h2,
 .wiki-columns h2,
 .wiki-reading h2,
+.wiki-sources h2,
 .related-section h2 {
   margin: 0 0 20px;
   font-family: "Noto Serif SC", serif;
@@ -1176,6 +1252,85 @@ kbd {
   font-family: "Noto Serif SC", serif;
   font-size: 17px;
   line-height: 1.9;
+}
+
+.wiki-key-section {
+  padding: clamp(70px, 9vw, 130px) 0;
+}
+
+.wiki-section-heading {
+  margin-bottom: 34px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+}
+
+.wiki-key-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--ink);
+  border-left: 1px solid var(--hairline);
+}
+
+.wiki-key-grid article {
+  min-height: 340px;
+  padding: clamp(26px, 4vw, 50px);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.wiki-key-grid span,
+.wiki-depth-grid li > span,
+.wiki-sources li > span {
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.wiki-key-grid h3 {
+  margin: auto 0 18px;
+  font-family: "Noto Serif SC", serif;
+  font-size: clamp(25px, 2.6vw, 40px);
+}
+
+.wiki-depth-grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  border-top: 1px solid var(--ink);
+  border-left: 1px solid var(--hairline);
+}
+
+.wiki-depth-grid > section {
+  padding: clamp(34px, 5vw, 68px);
+  border-right: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.wiki-depth-grid h2 {
+  margin-bottom: 28px;
+}
+
+.wiki-depth-grid ol,
+.wiki-sources ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wiki-depth-grid li {
+  padding: 18px 0;
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+  border-top: 1px solid var(--hairline);
+}
+
+.wiki-depth-grid li:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .text-path {
@@ -1196,9 +1351,21 @@ kbd {
   border-bottom: 1px solid var(--hairline);
 }
 
-.wiki-reading,
 .related-section {
   padding: clamp(70px, 8vw, 120px) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.wiki-reference-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-left: 1px solid var(--hairline);
+}
+
+.wiki-reference-grid > section {
+  min-height: 310px;
+  padding: clamp(34px, 5vw, 68px);
+  border-right: 1px solid var(--hairline);
   border-bottom: 1px solid var(--hairline);
 }
 
@@ -1211,6 +1378,26 @@ kbd {
 .wiki-reading span {
   padding: 9px 13px;
   border: 1px solid var(--hairline);
+}
+
+.wiki-sources h2 {
+  margin-bottom: 20px;
+}
+
+.wiki-sources li {
+  padding: 14px 0;
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  border-top: 1px solid var(--hairline);
+}
+
+.wiki-sources a {
+  text-decoration: none;
+}
+
+.wiki-sources a:hover {
+  color: var(--red);
 }
 
 .editorial-note {
@@ -1294,6 +1481,20 @@ kbd {
   .wiki-columns section {
     min-height: auto;
   }
+
+  .wiki-depth-grid,
+  .wiki-reference-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .wiki-coordinate,
+  .wiki-overview,
+  .wiki-depth-grid,
+  .wiki-reference-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1360,8 +1561,17 @@ kbd {
   .field-index,
   .principle-grid,
   .wiki-coordinate,
+  .wiki-overview,
+  .wiki-key-grid,
+  .wiki-depth-grid,
+  .wiki-reference-grid,
   .related-grid {
     grid-template-columns: 1fr;
+  }
+
+  .wiki-key-grid article,
+  .wiki-reference-grid > section {
+    min-height: auto;
   }
 
   .field-card {
